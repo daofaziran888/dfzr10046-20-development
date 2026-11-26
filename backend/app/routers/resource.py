@@ -5,7 +5,7 @@ import csv
 import io
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.schemas import ActionPayload, ActionResult, EntryPayload, PageResult
@@ -80,6 +80,18 @@ def get_entry(module: str, entry_id: int) -> dict[str, Any]:
     if entry is None:
         raise HTTPException(status_code=404, detail=f"{service.ENTITY} {entry_id} 不存在或已归档")
     return entry
+
+
+@router.patch("/{module}/{entry_id}", response_model=ActionResult)
+@router.put("/{module}/{entry_id}", response_model=ActionResult)
+def update_entry(
+    module: str, entry_id: int, payload: dict[str, Any] | None = Body(default=None),
+) -> ActionResult:
+    service = require_service(module)
+    body = payload or {}
+    values = body.get("values", body) if isinstance(body, dict) else {}
+    entry, message = service.update_entry(entry_id, values)
+    return ActionResult(ok=entry is not None, message=message, entry=entry)
 
 
 @router.post("/{module}", response_model=ActionResult)

@@ -15,6 +15,9 @@
       </div>
     </header>
 
+    <HierPathWorkspace v-if="meta.key === 'hier_path'" ref="hierWorkspaceRef" />
+    <ConformCheckWorkspace v-else-if="meta.key === 'conform_check'" ref="conformWorkspaceRef" />
+
     <div class="stat-row">
       <article v-for="item in stats" :key="item.label" class="stat-card">
         <span class="stat-label">{{ item.label }}</span>
@@ -104,6 +107,8 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import HierPathWorkspace from '@/components/HierPathWorkspace.vue'
+import ConformCheckWorkspace from '@/components/ConformCheckWorkspace.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)
@@ -115,6 +120,8 @@ const filterFields = meta.fields.slice(0, 3)
 const showCreate = ref(false)
 const creating = ref(false)
 const createValues = ref<Record<string, string>>({})
+const hierWorkspaceRef = ref<{ refreshAll: () => Promise<void> } | null>(null)
+const conformWorkspaceRef = ref<{ load: () => Promise<void> } | null>(null)
 const stats = computed(() => [
   { label: meta.metrics[0], value: total.value },
   { label: meta.metrics[1], value: rows.value.filter((row) => row.status === meta.statuses[1]).length },
@@ -158,6 +165,7 @@ async function submitCreate() {
     if (!result.ok) throw new Error(result.message)
     showCreate.value = false
     await reload()
+    if (meta.key === 'hier_path') await hierWorkspaceRef.value?.refreshAll()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '登记失败'
   } finally {
@@ -171,6 +179,8 @@ async function runAction(action: string, row: EntryRow) {
     const result = await applyAction(meta.key, Number(row.id), action)
     if (!result.ok) throw new Error(result.message)
     await reload()
+    if (meta.key === 'hier_path') await hierWorkspaceRef.value?.refreshAll()
+    if (meta.key === 'conform_check') await conformWorkspaceRef.value?.load()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '操作失败'
   }

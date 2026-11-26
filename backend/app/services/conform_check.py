@@ -13,8 +13,17 @@ class ConformCheckService(BaseModuleService):
     LIST_FIELDS = ["核对编号", "基准维度", "对照维度", "核对粒度", "匹配键数", "不匹配键数", "核对结论", "核对时间"]
     REQUIRED_FIELDS = ["核对编号", "基准维度", "对照维度"]
     STATUS_ORDER = ["待核对", "核对中", "已一致", "存在偏差"]
-    ACTION_RULES = {"启动核对": "核对中", "确认一致": "已一致", "登记偏差": "存在偏差"}
+    ACTION_RULES = {"签收": "核对中", "启动核对": "核对中", "确认一致": "已一致", "登记偏差": "存在偏差"}
     NEGATIVE_ACTIONS = []
+
+    def run_action(self, entry_id: int, action: str):  # type: ignore[override]
+        entry, message = super().run_action(entry_id, action)
+        if entry is not None and action == "签收" and entry.get("review_id"):
+            # 通用核对表的“签收”与路径复核申请共享同一个办理状态。
+            from app.services.path_review import path_review_service
+
+            path_review_service.claim_review(entry["review_id"], "复核人")
+        return entry, message
 
     def check_conformity(
         self, base_dim: str, ref_dim: str, granularity: str,

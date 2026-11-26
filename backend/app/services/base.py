@@ -43,6 +43,20 @@ class BaseModuleService:
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(self.MODULE, entry_id)
 
+    def update_entry(
+        self, entry_id: int, values: dict[str, Any],
+    ) -> tuple[dict[str, Any] | None, str]:
+        """更新通用字段；路径父节点变更等差异仍可在子类中扩展。"""
+        entry = store.find(self.MODULE, entry_id)
+        if entry is None:
+            return None, f"{self.ENTITY} {entry_id} 不存在或已归档"
+        for field in self.LIST_FIELDS:
+            if field in values:
+                entry[field] = values[field]
+        if "status" in values and values["status"]:
+            entry["status"] = values["status"]
+        return entry, f"{self.ENTITY}已更新"
+
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [
             field for field in self.REQUIRED_FIELDS
